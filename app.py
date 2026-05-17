@@ -1,5 +1,4 @@
-import sys, subprocess
-subprocess.check_call([sys.executable, "-m", "pip", "install", "streamlit", "langchain", "langchain-community", "PyPDF2", "google-generativeai", "faiss-cpu", "numpy"])
+
 
 import streamlit as st
 import google.generativeai as genai
