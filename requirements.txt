@@ -1,6 +1,5 @@
 streamlit
 google-generativeai
-faiss-cpu
 langchain
 pypdf2
-numpy
+faiss-cpu
