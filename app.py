@@ -34,7 +34,7 @@ def get_text_chunks(text):
     return chunks
 
 def get_embeddings(text_chunks):
-    model ='models/text-embedding-004'
+    model ='text-embedding-004'
     embeddings = genai.embed_content(model=model, content=text_chunks, task_type="retrieval_document")["embedding"]
     return np.array(embeddings)
 
@@ -46,7 +46,7 @@ def get_vector_store(text_chunks):
     return index, text_chunks
 
 def get_answer(question, index, text_chunks):
-    question_embedding = genai.embed_content(model='models/text-embedding-004', content=question, task_type="retrieval_query")["embedding"]
+    question_embedding = genai.embed_content(model='text-embedding-004', content=question, task_type="retrieval_query")["embedding"]
     D, I = index.search(np.array([question_embedding]), k=4)
     relevant_chunks = [text_chunks[i] for i in I[0]]
     context = "\n\n".join(relevant_chunks)
