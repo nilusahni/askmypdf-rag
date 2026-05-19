@@ -5,14 +5,12 @@ from PyPDF2 import PdfReader
 st.set_page_config(page_title="AskMyPDF", page_icon="📄", layout="wide")
 st.title("AskMyPDF - PDF se Sawal Puchiye 📄")
 
-# API Key setup
 try:
     client = genai.Client(api_key=st.secrets["GOOGLE_API_KEY"])
 except Exception as e:
     st.error("Secrets me GOOGLE_API_KEY nahi mili. Streamlit Cloud > App settings > Secrets me daal de.")
     st.stop()
 
-# Step 1: PDF Upload
 st.subheader("Step 1: PDF Upload Karein")
 pdf_file = st.file_uploader("PDF file choose karein", type="pdf")
 
@@ -27,17 +25,14 @@ if pdf_file is not None:
     
     if text:
         st.success(f"PDF process ho gaya! Total {len(pdf_reader.pages)} pages mile.")
-        
-        # Step 2: Sawal Puchiye
         st.subheader("Step 2: Sawal Puchiye")
         user_question = st.text_input("Apna sawal yaha likhein:")
         
         if st.button("Jawab Do") and user_question:
             with st.spinner("Jawab dhoond raha hu..."):
                 try:
-                    # Naya model naam: gemini-2.0-flash-exp. Ye free me chal raha hai
                     prompt = f"""
-                    Tum ek helpful assistant ho. Niche diye gaye PDF context ke basis pe user ke sawal ka jawab do.
+                    Niche diye gaye PDF context ke basis pe user ke sawal ka jawab do.
                     Agar jawab context me nahi hai to bol do "Ye PDF me nahi hai".
                     
                     PDF Context:
@@ -48,7 +43,7 @@ if pdf_file is not None:
                     """
                     
                     response = client.models.generate_content(
-                        model="gemini-2.0-flash-exp", 
+                        model="gemini-2.5-flash", 
                         contents=prompt
                     )
                     st.write("### Jawab:")
