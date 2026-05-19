@@ -1,89 +1,64 @@
-
-
-import streamlit as st
+import streamlit as st 
 import google.generativeai as genai
 from PyPDF2 import PdfReader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-import faiss
-import numpy as np
-import os
 
-# --- Page Config ---
-st.set_page_config(page_title="AskMyPDF RAG", page_icon="📄")
+st.set_page_config(page_title="AskMyPDF", page_icon="📄", layout="wide")
 
-# --- Gemini API Key ---
+st.title("AskMyPDF - PDF se Sawal Puchiye 📄")
+
+# API Key setup
 try:
     GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
     genai.configure(api_key=GOOGLE_API_KEY)
-except:
-    st.error("Bhai GOOGLE_API_KEY nahi mila. Streamlit → App settings → Secrets me daal de: GOOGLE_API_KEY = 'tera-key'")
+except Exception as e:
+    st.error("Secrets me GOOGLE_API_KEY nahi mili. Streamlit Cloud > App settings > Secrets me daal de.")
     st.stop()
 
-# --- Functions ---
-def get_pdf_text(pdf_docs):
-    text = ""
-    for pdf in pdf_docs:
-        pdf_reader = PdfReader(pdf)
+# Step 1: PDF Upload
+st.subheader("Step 1: PDF Upload Karein")
+pdf_file = st.file_uploader("PDF file choose karein", type="pdf")
+
+if pdf_file is not None:
+    # PDF ka text nikal lo
+    with st.spinner("PDF padh raha hu..."):
+        pdf_reader = PdfReader(pdf_file)
+        text = ""
         for page in pdf_reader.pages:
-            text += page.extract_text()
-    return text
-
-def get_text_chunks(text):
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-    chunks = text_splitter.split_text(text)
-    return chunks
-
-def get_embeddings(text_chunks):
-    model ='text-embedding-004'
-    embeddings = genai.embed_content(model=model, content=text_chunks, task_type="retrieval_document")["embedding"]
-    return np.array(embeddings)
-
-def get_vector_store(text_chunks):
-    embeddings = get_embeddings(text_chunks)
-    dim = len(embeddings[0])
-    index = faiss.IndexFlatL2(dim)
-    index.add(embeddings)
-    return index, text_chunks
-
-def get_answer(question, index, text_chunks):
-    question_embedding = genai.embed_content(model='text-embedding-004', content=question, task_type="retrieval_query")["embedding"]
-    D, I = index.search(np.array([question_embedding]), k=4)
-    relevant_chunks = [text_chunks[i] for i in I[0]]
-    context = "\n\n".join(relevant_chunks)
-
-    model = genai.GenerativeModel('gemini-1.5-flash')
-    prompt = f"""
-    Context:\n {context}\n
-    Question: {question}\n
-    Answer the question based on the context above. If answer is not in context, say "PDF me ye nahi mila".
-    Answer:
-    """
-    response = model.generate_content(prompt)
-    return response.text
-
-# --- UI ---
-st.title("📄 AskMyPDF - RAG with Gemini")
-st.write("PDF upload kar aur usse sawaal pooch")
-
-with st.sidebar:
-    st.header("Upload PDF")
-    pdf_docs = st.file_uploader("PDF file daal", accept_multiple_files=True, type="pdf")
-    if st.button("Process Karo"):
-        if pdf_docs:
-            with st.spinner("PDF padh raha hun..."):
-                raw_text = get_pdf_text(pdf_docs)
-                text_chunks = get_text_chunks(raw_text)
-                st.session_state.index, st.session_state.chunks = get_vector_store(text_chunks)
-                st.success("Ho gaya! Ab sawaal pooch")
-        else:
-            st.warning("Pehle PDF to daal bhai")
-
-user_question = st.text_input("PDF se kya poochna hai?")
-
-if user_question:
-    if "index" not in st.session_state:
-        st.warning("Pehle PDF process kar bhai")
+            page_text = page.extract_text()
+            if page_text:
+                text += page_text + "\n"
+    
+    if text:
+        st.success(f"PDF process ho gaya! Total {len(pdf_reader.pages)} pages mile.")
+        
+        # Step 2: Sawal Puchiye
+        st.subheader("Step 2: Sawal Puchiye")
+        user_question = st.text_input("Apna sawal yaha likhein:")
+        
+        if st.button("Jawab Do") and user_question:
+            with st.spinner("Jawab dhoond raha hu..."):
+                try:
+                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    
+                    # Gemini ko 30k characters tak hi bhejte hain limit ki wajah se
+                    prompt = f"""
+                    Tum ek helpful assistant ho. Niche diye gaye PDF context ke basis pe user ke sawal ka jawab do.
+                    Agar jawab context me nahi hai to bol do "Ye PDF me nahi hai".
+                    
+                    PDF Context:
+                    {text[:30000]}
+                    
+                    Sawal: {user_question}
+                    Jawab:
+                    """
+                    
+                    response = model.generate_content(prompt)
+                    st.write("### Jawab:")
+                    st.write(response.text)
+                    
+                except Exception as e:
+                    st.error(f"Gemini se error aaya: {e}")
     else:
-        with st.spinner("Jawab dhoond raha hun..."):
-            answer = get_answer(user_question, st.session_state.index, st.session_state.chunks)
-            st.write("Jawab:", answer)
+        st.error("Is PDF se text nahi nikal paya. Koi aur PDF try karo.")
+else:
+    st.info("Shuru karne ke liye upar PDF upload karo.")
